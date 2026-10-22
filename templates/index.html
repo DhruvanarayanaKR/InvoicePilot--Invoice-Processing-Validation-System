@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · InvoicePilot{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">WORKSPACE / INVOICES</p>
+        <h1>Invoice dashboard</h1>
+        <p class="muted">Review incoming records and keep exceptions visible.</p>
+    </div>
+</section>
+
+<section class="stat-grid" aria-label="Invoice record counts">
+    <article class="stat-card"><span>Total records</span><strong>{{ counts.total }}</strong></article>
+    <article class="stat-card"><span>Pending</span><strong>{{ counts.pending }}</strong></article>
+    <article class="stat-card"><span>Needs review</span><strong>{{ counts.needs_review }}</strong></article>
+</section>
+
+<section class="content-grid">
+    <section class="panel invoice-panel">
+        <div class="panel-heading">
+            <div><p class="eyebrow">REGISTER</p><h2>Invoices</h2></div>
+            <span class="count-pill">{{ counts.total }} total</span>
+        </div>
+        {% if invoices %}
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Invoice</th><th>Vendor</th><th>Due date</th><th>Total</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for invoice in invoices %}
+                        <tr>
+                            <td><a class="invoice-link" href="{{ url_for('main.invoice_detail', invoice_id=invoice.id) }}">{{ invoice.invoice_number or "Unidentified invoice" }}</a></td>
+                            <td>{{ invoice.vendor_name or "Not extracted" }}</td>
+                            <td>{{ invoice.due_date or "Not extracted" }}</td>
+                            <td>{% if invoice.total is not none %}${{ "%.2f"|format(invoice.total) }}{% else %}Not extracted{% endif %}</td>
+                            <td><span class="status status-{{ invoice.processing_status }}">{{ invoice.processing_status.replace("_", " ") }}</span></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <span class="empty-icon">＋</span>
+                <h3>No invoices yet</h3>
+                <p>Add a record with the form to start your local invoice register.</p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="panel form-panel">
+        <div class="panel-heading"><div><p class="eyebrow">MANUAL ENTRY</p><h2>Add invoice</h2></div></div>
+        {% if errors %}
+            <div class="form-errors" role="alert">
+                <strong>Please correct the following:</strong>
+                <ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            </div>
+        {% endif %}
+        <form action="{{ url_for('main.create_invoice') }}" method="post">
+            <label>Invoice number
+                <input name="invoice_number" value="{{ form_values.get('invoice_number', '') }}" required maxlength="120">
+            </label>
+            <label>Vendor
+                <input name="vendor_name" value="{{ form_values.get('vendor_name', '') }}" required maxlength="200">
+            </label>
+            <div class="form-row">
+                <label>Invoice date
+                    <input type="date" name="invoice_date" value="{{ form_values.get('invoice_date', '') }}" required>
+                </label>
+                <label>Due date
+                    <input type="date" name="due_date" value="{{ form_values.get('due_date', '') }}" required>
+                </label>
+            </div>
+            <div class="form-row">
+                <label>Subtotal
+                    <input type="number" name="subtotal" min="0" step="0.01" value="{{ form_values.get('subtotal', '') }}" required>
+                </label>
+                <label>Tax
+                    <input type="number" name="tax" min="0" step="0.01" value="{{ form_values.get('tax', '') }}" required>
+                </label>
+            </div>
+            <label>Total
+                <input type="number" name="total" min="0" step="0.01" value="{{ form_values.get('total', '') }}" required>
+            </label>
+            <label>Source filename <span class="optional">(optional)</span>
+                <input name="source_filename" value="{{ form_values.get('source_filename', '') }}" maxlength="255">
+            </label>
+            <button class="button-primary" type="submit">Save invoice record</button>
+            <p class="form-note">Records with duplicates or mismatched totals are saved for human review.</p>
+        </form>
+
+    <div class="upload-divider"><span>or</span></div>
+    <form action="{{ url_for('main.upload_invoice') }}" method="post" enctype="multipart/form-data" class="upload-form">
+        <label class="upload-label">
+            Upload PDF invoice
+            <input type="file" name="invoice_file" accept=".pdf" required>
+        </label>
+        <button class="button-secondary" type="submit">Process PDF</button>
+    </form>
+
+    <div class="upload-divider"><span>Excel</span></div>
+    <div class="excel-actions">
+        <a class="button-secondary" href="{{ url_for('main.export_invoices_excel') }}">Download Excel</a>
+        <a class="button-secondary" href="{{ url_for('main.download_excel_template') }}">Download import template</a>
+        <form action="{{ url_for('main.import_invoices_excel') }}" method="post" enctype="multipart/form-data" class="upload-form">
+            <label class="upload-label">
+                Import invoice Excel
+                <input type="file" name="excel_file" accept=".xlsx" required>
+            </label>
+            <button class="button-secondary" type="submit">Import Excel</button>
+        </form>
+    </div>
+</section>
+</section>
+{% endblock %}

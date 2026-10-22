@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{% if invoice %}{{ invoice.invoice_number or "Invoice record" }}{% else %}Invoice not found{% endif %} · InvoicePilot{% endblock %}
+{% block content %}
+{% if invoice %}
+    <a class="back-link" href="{{ url_for('main.index') }}">← Back to dashboard</a>
+    <section class="detail-heading">
+        <div><p class="eyebrow">INVOICE RECORD</p><h1>{{ invoice.invoice_number or ("Invoice record #" ~ invoice.id) }}</h1><p class="muted">{{ invoice.vendor_name or "Vendor not extracted" }}</p></div>
+        <span class="status status-{{ invoice.processing_status }}">{{ invoice.processing_status.replace("_", " ") }}</span>
+    </section>
+    {% if invoice.exception_reasons %}
+        <section class="review-notice">
+            <strong>Human review required</strong>
+            <p>This record has exceptions. It has not been approved or paid.</p>
+            <ul>{% for reason in invoice.exception_reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+        </section>
+    {% else %}
+        <section class="review-notice neutral-notice">
+            <strong>Pending processing</strong>
+            <p>This record is not approved or paid.</p>
+        </section>
+    {% endif %}
+    <section class="panel detail-panel">
+        <div class="panel-heading"><div><p class="eyebrow">RECORD DETAILS</p><h2>Invoice information</h2></div></div>
+        <dl class="detail-list">
+            <div><dt>Invoice number</dt><dd>{{ invoice.invoice_number or "Not extracted" }}</dd></div>
+            <div><dt>Vendor</dt><dd>{{ invoice.vendor_name or "Not extracted" }}</dd></div>
+            <div><dt>Invoice date</dt><dd>{{ invoice.invoice_date or "Not extracted" }}</dd></div>
+            <div><dt>Due date</dt><dd>{{ invoice.due_date or "Not extracted" }}</dd></div>
+            <div><dt>Subtotal</dt><dd>{% if invoice.subtotal is not none %}${{ "%.2f"|format(invoice.subtotal) }}{% else %}Not extracted{% endif %}</dd></div>
+            <div><dt>Tax</dt><dd>{% if invoice.tax is not none %}${{ "%.2f"|format(invoice.tax) }}{% else %}Not extracted{% endif %}</dd></div>
+            <div><dt>Total</dt><dd>{% if invoice.total is not none %}${{ "%.2f"|format(invoice.total) }}{% else %}Not extracted{% endif %}</dd></div>
+            <div><dt>Processing status</dt><dd>{{ invoice.processing_status.replace("_", " ") }}</dd></div>
+            <div><dt>Source filename</dt><dd>{{ invoice.source_filename or "Not provided" }}</dd></div>
+            <div><dt>Created</dt><dd>{{ invoice.created_at }}</dd></div>
+        </dl>
+    </section>
+    <section class="panel ai-panel">
+        <div class="panel-heading">
+            <div><p class="eyebrow">OPTIONAL AI ASSISTANCE</p><h2>Summary and review explanation</h2></div>
+            {% if ai_note %}<span class="count-pill">Generated with {{ ai_note.model }}</span>{% endif %}
+        </div>
+        <p class="ai-disclaimer">
+            AI can explain the fields and existing rule-based findings. It cannot change validation,
+            approve, reject, or authorize payment. If you request an explanation, the invoice fields
+            and findings shown above are sent to Groq; the PDF itself is not sent.
+        </p>
+        {% if ai_note %}
+            <div class="ai-result">
+                <h3>Summary</h3>
+                <p>{{ ai_note.summary }}</p>
+                <h3>Explanation</h3>
+                <p>{{ ai_note.explanation }}</p>
+                {% if ai_note.relevant_fields %}
+                    <h3>Relevant fields</h3>
+                    <ul>{% for field in ai_note.relevant_fields %}<li>{{ field }}</li>{% endfor %}</ul>
+                {% endif %}
+                {% if ai_note.suggested_checks %}
+                    <h3>Suggested human checks</h3>
+                    <ul>{% for check in ai_note.suggested_checks %}<li>{{ check }}</li>{% endfor %}</ul>
+                {% endif %}
+                <p class="form-note">Generated {{ ai_note.generated_at }}. Review the source invoice; AI output may be inaccurate.</p>
+            </div>
+        {% endif %}
+        {% if ai_configured %}
+            <form action="{{ url_for('main.explain_invoice', invoice_id=invoice.id) }}" method="post">
+                <button class="button-primary" type="submit">
+                    {% if ai_note %}Regenerate AI explanation{% else %}Generate AI summary and explanation{% endif %}
+                </button>
+            </form>
+        {% else %}
+            <p class="form-note">AI is disabled until GROQ_API_KEY is set in your local .env file.</p>
+        {% endif %}
+    </section>
+{% else %}
+    <section class="panel empty-state">
+        <h1>Invoice not found</h1>
+        <p class="muted">This record may have been removed or the link may be incorrect.</p>
+        <a class="button-secondary" href="{{ url_for('main.index') }}">Return to dashboard</a>
+    </section>
+{% endif %}
+{% endblock %}
